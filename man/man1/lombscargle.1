@@ -1,0 +1,357 @@
+.TH lombscargle 1 "January 2010" "CEH" \" -*- nroff -*-
+.SH NAME 
+lombscargle \- Estimate the power spectrum from an unevenly sampled time series.
+.br
+.SH SYNOPSIS
+.B lombscargle [options]
+.br
+
+.br
+Requires Martin De Kauwe's C Library to run:
+.br
+#include <memory.h>
+.br
+#include <file_io.h>
+.br
+#include <error_handling.h> 
+.br 
+.SH DESCRIPTION
+.br
+This code is an implementation of the Lomb-Scargle method which uses least squares 
+to fit sine and cosine model functions to an unequally sampled 
+time-series, y(t). Use of the least squares method allows the observed time-series 
+to be evaluated at measured intervals by weighting on a "per point interval", 
+rather than a "per time interval" basis (Press, 1992), i.e. can be used on time
+series which contain gaps. 
+
+.p	
+Given N observations, y(t), obtained at time t_i (i=1,2,...,N) a model can be 
+formed:
+
+	y(t) = A.cos(2.pi.omega) + B.sin(2.pi.omega)
+
+.br	
+.p	
+where A and B are unknown and omega is the known frequency. Using the method of 
+least squares the lomb normalised periodgram is defined as:
+	
+
+	P_N(omega) = 0.5.sigma^2 x [ AA^2 / BB + CC^2 / DD ]
+
+.br	
+.p
+where AA  = SUM (y_tn - ybar).cos(2.pi.omega(tn - tau)),
+.br
+BB = SUM cos^2(2.pi.omega(tn - tau)),
+.br
+CC = SUM (y_tn - ybar).sin(2.pi.omega(tn - tau)),
+.br
+DD = SUM sin^2(2.pi.omega(tn - tau)),
+.br
+tau = tan(2.omega.tau) 
+.br 
+    =  SUM (sin(2.omega.tn) / SUM (cos(2.omega.tn),
+.br
+and tau makes the equation time-invariant.
+
+.p
+This code also implements the spectrum corrections presented in Schulz & Nudelsee (2002).
+Time-series can show a decrease in spectral amplitude with increasing frequency, 
+dubbed "red-noise". This code corrects the periodogram by testing whether the 
+variability recorded for a given time-series is consistent with that which 
+stochastically arises from a first-order autoregressive process. 
+
+.p
+Finally, there is an option to output the input data required to carry out cross-spectral
+analysis between two time series. Check manpage for coherency for more details.
+
+.br
+
+.SH HELP OPTIONS
+.IP "-u " 9
+Print a usage message (options with brief explanation).
+.br
+
+.SH GENERAL OPTIONS
+.IP "-ver " 9
+Print to the screen the program build version, date information.
+.br
+.IP "-segs \fI\|n\|\fR" 9
+Number of WOSA segments with a 50 percent overlap, i.e. -segs 3
+.br
+.IP "-b " 9
+Use binary mode - i.e. code expects as input a text file with the date locations of binary files. You
+will also need to supply the dimensions of the binary files, the file extentions etc, but the code 
+will do the rest. 
+.br
+.IP "-dir " 9
+Set path to binary files, default is /users/eow/mgdk/DATA/REGRIDDED_LST/gridded_03/
+.br
+.IP "-fname " 9
+ Set file prefix, default is lsta_daily_
+.br
+.IP "-fext " 9
+Set file extension, default is .gra
+.br
+.IP "-scargle " 9
+Generate periodogram using Scargle paper implementation.
+.br
+.IP "-press " 9
+Generate periodogram using the Press et al implementation.
+.br
+.IP "-my " 9
+Average multiyears of input data to get a single timeseries and process spectra of this
+.br
+.IP "-runs " 9
+Check it is appropriate to use an AR1 model to describe the time-series 
+Using a non-parametric test according to Bendat and Piersol, 1986, Random
+data, 2nd ed, wiley: New York, pg 95.
+.br
+.IP "-nrows \fI\|n\|\fR" 9
+The number of rows in binary image (int).
+.br
+.IP "-ncols \fI\|n\|\fR" 9
+The number of columns in binary image (int).
+.br
+.IP "-r \fI\|n\|\fR" 9
+The row in the binary image you want processed (int). Note code is zero based.
+.br
+.IP "-c \fI\|n\|\fR" 9
+The column in the binary image you want processed (int). Note code is zero based.
+.br
+.IP "-undef \fI\|n\|\fR" 9
+Set undefined value in input file - LST = -999., default is -500. Code expects a 
+floating point value.
+.br
+.IP "-white " 9
+Test significance of generated power spectrum against hypothesis of random white noise.
+.br
+.IP "-si \fI\|n\|\fR" 9
+Explicitly set the sampling interval of the output spectra i.e. 0.001. Code expects a float.
+.br
+.IP "-ai \fI\|n\|\fR" 9
+Explicitly set the average sampling interval. Code expects a float.
+.br
+.IP "-of \fI\|n\|\fR" 9
+Oversampling factor, set to 4.0 (typical values >= 4.0). This improves the resolution of the output
+spectrum, as the sampling interval is increased. Clearly there is a limit, and one can't produce an
+improved resolution where there isn't one already exisiting in the original time series.
+.br
+.IP "-hi \fI\|n\|\fR" 9
+Specify the scaling factor of the average Nyquist frequency, (Hifac x avg.Nyquist freq = Highest 
+frequency to be examined) set to 1.0 by default
+.br
+.br
+.IP "-mf \fI\|n\|\fR" 9
+Explicitly set the maximum frequency sampled upto, e.g. the nyquist frequency or beyond (though clearly
+not recommended).
+.br
+.IP "-eq " 9
+Data is equal distance use standard method for calculating autocorrelation coefficent.
+.br
+
+.SH DATA TAPERING OPTIONS
+A fourier transform of a time series often results in "spectral leakage", where power at a given frequency
+interval contains leakage from another wavelength which is distance X away. This happens because a fourier 
+transform ends up with non-zero values at frequenceies other than omega, for example caused by an abrupt end
+to the input time series. This can result in it being difficult
+to resolve a sinsoidal component. Data windowing is therefore a process to modulate (gradually) the input time 
+series.
+.IP "-nowin "  9
+Don't apply a window to the raw time series.
+.br
+.IP "-costap "  9
+Apply a split cosine bell tapering to the time series.
+.br
+.IP "-rec "  9
+Use a rectangular window on the raw time series.
+.br
+.IP "-han "  9
+Use a Hanning window on the raw time series.
+.br
+
+.SH TREND OPTIONS
+A prerequisite of harmonic analysis is the need for the data to be stationary (unchanging), if not a 
+spectrum becomes very difficult to interpret. Clearly a time series will contain features such as noise, 
+so Priestley (1981) argues for the need for "weak stationarity". The default option is to apply a linear 
+least squares fit to the data and then subtract the line from the time series.
+.IP "-notre " 9
+Don't detrend the raw time-series.
+.br
+.IP "-notre " 9
+Detrend using more *robust* fitting a line by minimising absolute deviation method. User beware, the method 
+implemented can result in problems - google medfit and see for yourself!
+.br
+
+.SH AR1 OPTIONS
+To overcome the issue of red-noise bias and obtain an improqved periodogram, a first-order
+autoregressive (AR1) process is fitted to the time series. The significance of peaks in
+frequency space can therefore be tested against a red-noise background generated by the AR1 process.
+.IP "-seed \fI\|n\|\fR" 9
+Set the random seed used to generate random numbers for the AR1 process. You must specify a negative int.
+.br
+.IP "-nsim \fI\|n\|\fR" 9
+The number of AR1 simulations to generate, default is 200.
+.br
+.IP "-fconf99 " 9
+Output significance at the 99% level.
+.br
+.IP "-fconf95 " 9
+Output significance at the 95% level.
+.br
+.IP "-fconf90 " 9
+Output significance at the 90% level.
+.br
+.IP "-fconf80 " 9
+Output significance at the 80% level.
+.br
+
+.SH OUTPUT OPTIONS
+.IP "-dumpin " 9
+Dump input file out to stderr. Ok sounds pointless, but it is useful if you are processing a binary file.
+.br	
+.IP "-year \fI\|n\|\fR" 9
+Dump input file out to stderr, but determine year of interest, i.e. if looking at 2007, stops output running
+from 142-284, it would go from 1-142 instead.
+.br	
+.IP "-printo " 9
+Print corrected (red noise) and uncorrected periodgrams.
+.br	
+.IP "-printr " 9
+Print periodgrams, in relative power on the yaxis and period on xaxis.
+.br	
+.IP "-fp " 9
+Find the statistically significant peaks and output the bandwidth resolution, plot in gnuplot u  1:5:6 w xerr.
+.br	
+.IP "-fp " 9
+Print periodgrams in a decibel scale.
+.br	
+
+.SH INPUT FILE FORMAT
+The input file format is either an a ascii file provided on the standard input,
+or an ascii file with the locations of various binary input files. If the ascii 
+format is supplied, then the code expects two columns) - i.e: 
+		
+		time 1    value 1
+.br
+		time 2    value 2
+.br
+		  .          .
+.br
+		  .          .          
+.br
+		time n     value n
+
+
+Alternatively on the stdin a ascii text file with the date stamp of the relevant 
+binary files requiring processing. If using binary mode (-b) the number of rows, 
+number of cols, row and col of interest need to also be defined on the command line.
+Similarly the path to the file (-dir), the file type (-fname) and the file extention
+(-fext), though defaults are listed.
+ 
+Note the code only works on a single pixel!
+
+.p	
+for example:
+ -segs 3
+.br
+lombscargle -b -dir "/users/eow/mgdk/DATA/REGRIDDED_LST/gridded_03/" \
+			-fname "lsta_daily_" -fext ".gra" -segs 3 -r 100 -c 100 -nrows 348 \
+			-ncols 728 < input_files > output_file
+.br	
+where the contents of input_files might look like:
+
+.br	
+20060522
+20060523
+20060524
+
+.SH EXAMPLE
+run the shell:
+
+.br
+example_doMe.bash 
+
+.SH OUTPUT FILE FORMAT
+The default form of the output file is 4 colums of data, one row per frequency interval.
+Column headings are in order:
+
+.br 
+
+\fI\|frequency\|\fR (cycles per time interval);
+.br
+\fI\|power\|\fR (unitless);
+.br
+\fI\|significance level\|\fR (unitless);
+.br
+\fI\|scaler\|\fR (unitless, to turn the power into relative power (i.e. divide column 2 by column 4));
+.br
+
+The output is supressed if the user requests the "-dumpin" flag.
+In such a scenario the input file is printed instead.
+.br
+
+.SH REFERENCES
+.br
+Chatfield, C. (2004) The analysis of time series - an introduction. Chapman and Hall,
+Boca Raton. Pg 159-167.
+.br   
+
+Glynn, E. F., Chen, J. and Mushegian, A. R. (2005) Detecting periodic patterns in unevenly
+spaced gene expression time series using Lomb-Scargle periodograms. Bioinformatics, 22, 310-316.
+.br
+
+Lomb, N. R. (1976) Least-squares frequency analysis of unequally spaced data. Astrophysics
+and Space Science, 39, 447-462.
+.br
+
+Press, W. H., Teukolsky, S. A., Vetterling, W. T. and Flannery, B. P. (1992) Numerical 
+Recipes in C: The art of scientific computing. Cambridge University Press, Cambridge.
+.br
+
+Priestley, M. B. (1981) Spectral analysis and time series. Academic Press, London.
+.br
+
+Scargle, J. D. (1982) Statistical aspects of spectral analysis of unevenly spaced data. 
+Astrophysics Physics Journal, 263, 835-853.
+.br
+
+Schulz & Mudelsee (2002) REDFIT: estimating red-noise spectra directly from unevenly spaced 
+paleoclimatic time series. Computers & Geosciences, 28, 421-426.
+.br    
+
+.SH BUGS
+None as we speak, yeah right!
+.SH SEE ALSO
+coherency(1)
+.br
+.SH AUTHOR/COPYRIGHT
+.br
+Martin De Kauwe
+.br
+Centre of Ecology and Hydrology
+.br
+Crowmarsh Gifford
+.br
+Wallingford
+.br
+Gower Street
+.br
+Oxfordshire, OX10 8BB 
+.br
+mgdk@ceh.ac.uk
+.br
+mdekauwe@gmail.com
+.br
+
+.br
+Correction for rednoise is based on the fortran code REDFIT:
+.br
+M. Schulz and M. Mudelsee
+.br
+
+.br
+Original version of period code:
+.br
+Press et al 1992
+.br
