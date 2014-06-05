@@ -1,4 +1,3 @@
-=============================================
 Lomb-Scargle
 =============================================
 The Lomb–Scargle (LS) searches for periodic components within a time series but only evaluates  data at the sampled intervals and thus can be applied to unevenly spaced data sets.
